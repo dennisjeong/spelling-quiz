@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>맞춤법 마스터</title>
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fff8f0;
+    --card: #ffffff;
+    --primary: #ff6b6b;
+    --secondary: #4ecdc4;
+    --accent: #ffe66d;
+    --correct: #6bcb77;
+    --wrong: #ff6b6b;
+    --text: #2d2d2d;
+    --text-muted: #888;
+    --shadow: 0 8px 32px rgba(255,107,107,0.12);
+    --radius: 20px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: var(--bg);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    position: relative;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    top: -50%; right: -30%;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(255,107,107,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    bottom: -20%; left: -20%;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(78,205,196,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .app { width: 100%; max-width: 420px; position: relative; z-index: 1; }
+  .screen { display: none; }
+  .screen.active { display: block; animation: fadeUp 0.4s ease; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── 인트로 ── */
+  .intro-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 36px 24px;
+    text-align: center;
+    box-shadow: var(--shadow);
+    border: 2px solid rgba(255,107,107,0.1);
+  }
+  .logo-emoji { font-size: 60px; display: block; margin-bottom: 10px; animation: bounce 2s infinite; }
+  @keyframes bounce {
+    0%,100% { transform: translateY(0); }
+    50%      { transform: translateY(-8px); }
+  }
+  .intro-title { font-family: 'Jua', sans-serif; font-size: 30px; color: var(--primary); margin-bottom: 4px; }
+  .intro-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; line-height: 1.6; }
+
+  .ai-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    font-size: 12px; font-weight: 700;
+    padding: 5px 12px;
+    border-radius: 99px;
+    margin-bottom: 14px;
+    letter-spacing: 0.3px;
+  }
+
+  .db-count {
+    background: rgba(78,205,196,0.1);
+    border: 1px solid rgba(78,205,196,0.3);
+    color: #38a89d;
+    font-size: 12px; font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 99px;
+    margin-bottom: 18px;
+    display: inline-block;
+  }
+
+  .level-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .level-btn {
+    padding: 14px 8px;
+    border: 2px solid transparent;
+    border-radius: 14px;
+    cursor: pointer;
+    background: var(--bg);
+    font-family: 'Noto Sans KR', sans-serif;
+    transition: all 0.2s;
+    text-align: center;
+  }
+  .level-btn:hover, .level-btn.selected {
+    border-color: var(--primary);
+    background: rgba(255,107,107,0.06);
+    transform: translateY(-2px);
+  }
+  .level-btn .lv-emoji { font-size: 26px; display: block; margin-bottom: 4px; }
+  .level-btn .lv-name  { font-weight: 700; font-size: 13px; color: var(--text); display: block; }
+  .level-btn .lv-desc  { font-size: 11px; color: var(--text-muted); }
+
+  .ai-gen-btn {
+    width: 100%;
+    padding: 14px 8px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    border-radius: 14px;
+    font-family: 'Jua', sans-serif;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 16px rgba(102,126,234,0.3);
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    margin-bottom: 8px;
+  }
+  .ai-gen-btn:disabled { opacity: 0.6; cursor: default; }
+  .ai-gen-btn:active:not(:disabled) { transform: scale(0.97); }
+
+  .start-btn {
+    width: 100%;
+    padding: 17px;
+    background: linear-gradient(135deg, var(--primary), #ff4757);
+    color: white;
+    border: none;
+    border-radius: 14px;
+    font-family: 'Jua', sans-serif;
+    font-size: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 20px rgba(255,107,107,0.35);
+    letter-spacing: 1px;
+  }
+  .start-btn:active { transform: scale(0.97); }
+
+  .ai-status {
+    font-size: 12px;
+    color: #667eea;
+    text-align: center;
+    padding: 6px;
+    min-height: 26px;
+    font-weight: 500;
+    margin-bottom: 10px;
+  }
+
+  /* ── 퀴즈 ── */
+  .quiz-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .progress-wrap { flex: 1; margin: 0 10px; }
+  .progress-text { font-size: 12px; color: var(--text-muted); text-align: center; margin-bottom: 5px; }
+  .progress-bar { height: 8px; background: rgba(0,0,0,0.06); border-radius: 99px; overflow: hidden; }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+    border-radius: 99px;
+    transition: width 0.4s ease;
+  }
+  .score-badge {
+    background: linear-gradient(135deg, var(--accent), #ffb800);
+    color: #7a5700;
+    font-family: 'Jua', sans-serif;
+    font-size: 13px;
+    padding: 5px 10px;
+    border-radius: 99px;
+    white-space: nowrap;
+  }
+  .streak-badge { font-size: 13px; color: var(--text-muted); font-weight: 500; white-space: nowrap; }
+  .streak-badge.hot { color: var(--primary); animation: pulse 0.5s ease; }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+
+  .ai-source-tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px;
+    background: linear-gradient(135deg, rgba(102,126,234,0.1), rgba(118,75,162,0.1));
+    color: #667eea;
+    padding: 3px 8px;
+    border-radius: 99px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    border: 1px solid rgba(102,126,234,0.2);
+  }
+
+  .quiz-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 28px 22px;
+    box-shadow: var(--shadow);
+    border: 2px solid rgba(255,107,107,0.08);
+    margin-bottom: 14px;
+    min-height: 170px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .quiz-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+  }
+  .category-tag {
+    font-size: 11px;
+    background: rgba(255,107,107,0.1);
+    color: var(--primary);
+    padding: 4px 10px;
+    border-radius: 99px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    letter-spacing: 0.5px;
+  }
+  .quiz-sentence {
+    font-size: 21px; font-weight: 700; color: var(--text); line-height: 1.5;
+  }
+  .quiz-sentence .highlight {
+    color: var(--primary);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    text-decoration-style: wavy;
+    text-decoration-color: rgba(255,107,107,0.4);
+  }
+
+  .ox-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+  .ox-btn {
+    padding: 20px 14px;
+    border: 3px solid transparent;
+    border-radius: 16px;
+    font-family: 'Jua', sans-serif;
+    font-size: 40px;
+    cursor: pointer;
+    background: var(--card);
+    transition: all 0.15s;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  }
+  .ox-btn span { display: block; font-size: 12px; font-family: 'Noto Sans KR', sans-serif; margin-top: 4px; color: var(--text-muted); }
+  .ox-btn.o-btn { border-color: rgba(107,203,119,0.3); }
+  .ox-btn.x-btn { border-color: rgba(255,107,107,0.3); }
+  .ox-btn.o-btn:active,.ox-btn.o-btn:hover { background: rgba(107,203,119,0.1); border-color: var(--correct); transform: translateY(-2px); }
+  .ox-btn.x-btn:active,.ox-btn.x-btn:hover { background: rgba(255,107,107,0.1); border-color: var(--wrong); transform: translateY(-2px); }
+  .ox-btn:disabled { opacity: 0.5; cursor: default; transform: none !important; }
+  .ox-btn.result-correct { background: rgba(107,203,119,0.15); border-color: var(--correct); }
+  .ox-btn.result-wrong   { background: rgba(255,107,107,0.12); border-color: var(--wrong); }
+
+  /* ── 해설 ── */
+  .explanation-box {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: var(--shadow);
+    border: 2px solid transparent;
+    animation: slideIn 0.3s ease;
+    margin-bottom: 14px;
+    display: none;
+  }
+  .explanation-box.correct { border-color: var(--correct); }
+  .explanation-box.wrong   { border-color: var(--wrong); }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .exp-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .exp-icon { font-size: 22px; }
+  .exp-verdict { font-family: 'Jua', sans-serif; font-size: 17px; }
+  .exp-verdict.correct { color: var(--correct); }
+  .exp-verdict.wrong   { color: var(--wrong); }
+  .exp-answer { background: var(--bg); border-radius: 10px; padding: 9px 12px; margin-bottom: 9px; }
+  .exp-answer-label { font-size: 11px; color: var(--text-muted); margin-bottom: 3px; }
+  .exp-answer-text  { font-size: 15px; font-weight: 700; color: var(--text); }
+  .exp-answer-text .correct-word { color: var(--correct); }
+  .exp-answer-text .wrong-word   { color: var(--wrong); text-decoration: line-through; }
+  .exp-body { font-size: 13px; color: var(--text); line-height: 1.7; }
+  .exp-tip  { font-size: 12px; color: var(--text-muted); margin-top: 8px; background: rgba(255,230,109,0.2); padding: 7px 10px; border-radius: 8px; border-left: 3px solid var(--accent); }
+
+  .next-btn {
+    width: 100%; padding: 15px;
+    background: linear-gradient(135deg, var(--secondary), #38a89d);
+    color: white; border: none; border-radius: 14px;
+    font-family: 'Jua', sans-serif; font-size: 17px;
+    cursor: pointer; transition: all 0.2s;
+    box-shadow: 0 4px 16px rgba(78,205,196,0.3);
+    display: none; letter-spacing: 0.5px;
+  }
+  .next-btn:active { transform: scale(0.97); }
+
+  /* ── 결과 ── */
+  .result-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 36px 24px;
+    text-align: center;
+    box-shadow: var(--shadow);
+    border: 2px solid rgba(255,107,107,0.1);
+  }
+  .result-emoji { font-size: 68px; display: block; margin-bottom: 10px; }
+  .result-title { font-family: 'Jua', sans-serif; font-size: 26px; color: var(--primary); margin-bottom: 6px; }
+  .result-grade { font-size: 13px; color: var(--text-muted); margin-bottom: 22px; }
+  .result-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-bottom: 22px; }
+  .stat-box { background: var(--bg); border-radius: 12px; padding: 12px 6px; }
+  .stat-value { font-family: 'Jua', sans-serif; font-size: 22px; color: var(--primary); }
+  .stat-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .review-section { margin-bottom: 22px; text-align: left; }
+  .review-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  .review-item {
+    display: flex; align-items: flex-start; gap: 8px;
+    padding: 9px; border-radius: 10px; margin-bottom: 5px; font-size: 12px;
+  }
+  .review-item.ok   { background: rgba(107,203,119,0.08); }
+  .review-item.fail { background: rgba(255,107,107,0.08); }
+  .review-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; }
+  .review-dot.ok   { background: var(--correct); }
+  .review-dot.fail { background: var(--wrong); }
+  .review-item-text { line-height: 1.5; }
+  .review-item-wrong { color: var(--wrong); font-size: 11px; }
+  .retry-btn {
+    width: 100%; padding: 17px;
+    background: linear-gradient(135deg, var(--primary), #ff4757);
+    color: white; border: none; border-radius: 14px;
+    font-family: 'Jua', sans-serif; font-size: 19px;
+    cursor: pointer; transition: all 0.2s;
+    box-shadow: 0 4px 20px rgba(255,107,107,0.35);
+    letter-spacing: 1px; margin-bottom: 9px;
+  }
+  .home-btn {
+    width: 100%; padding: 13px;
+    background: transparent; color: var(--text-muted);
+    border: 2px solid rgba(0,0,0,0.08); border-radius: 14px;
+    font-family: 'Noto Sans KR', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.2s;
+  }
+
+  .spinner {
+    display: inline-block; width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: white; border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .confetti-wrap { position: fixed; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 999; overflow: hidden; }
+  .confetti {
+    position: absolute; width: 10px; height: 10px; border-radius: 2px;
+    animation: fall linear forwards;
+  }
+  @keyframes fall {
+    0%   { opacity: 1; transform: translateY(-20px) rotate(0deg); }
+    100% { opacity: 0; transform: translateY(110vh) rotate(720deg); }
+  }
+  .toast {
+    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+    background: #2d2d2d; color: white;
+    padding: 10px 20px; border-radius: 99px;
+    font-size: 13px; font-weight: 500;
+    z-index: 1000; opacity: 0;
+    transition: opacity 0.3s; white-space: nowrap;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- 인트로 -->
+  <div class="screen active" id="screen-intro">
+    <div class="intro-card">
+      <span class="logo-emoji">✏️</span>
+      <h1 class="intro-title">맞춤법 마스터</h1>
+      <p class="intro-sub">밑줄 친 표현이 맞으면 O, 틀리면 X!<br>AI가 새 문제를 무한 생성해 드려요 🤖</p>
+      <div class="ai-badge">✨ AI 무한 문제 생성</div>
+      <br>
+      <div class="db-count" id="db-count">📚 기본 문제 63개 수록</div>
+      <div class="level-grid">
+        <button class="level-btn selected" data-level="1" onclick="selectLevel(this)">
+          <span class="lv-emoji">🌱</span><span class="lv-name">입문</span><span class="lv-desc">기초 맞춤법</span>
+        </button>
+        <button class="level-btn" data-level="2" onclick="selectLevel(this)">
+          <span class="lv-emoji">🔥</span><span class="lv-name">도전</span><span class="lv-desc">헷갈리는 표현</span>
+        </button>
+        <button class="level-btn" data-level="3" onclick="selectLevel(this)">
+          <span class="lv-emoji">⚡</span><span class="lv-name">고수</span><span class="lv-desc">까다로운 문제</span>
+        </button>
+        <button class="level-btn" data-level="0" onclick="selectLevel(this)">
+          <span class="lv-emoji">🎲</span><span class="lv-name">랜덤</span><span class="lv-desc">전체 섞기</span>
+        </button>
+      </div>
+      <button class="ai-gen-btn" id="ai-gen-btn" onclick="generateAIQuestions()">
+        🤖 AI 문제 10개 추가 생성
+      </button>
+      <div class="ai-status" id="ai-status"></div>
+      <button class="start-btn" onclick="startGame()">시작하기 🚀</button>
+    </div>
+  </div>
+
+  <!-- 퀴즈 -->
+  <div class="screen" id="screen-quiz">
+    <div class="quiz-header">
+      <div class="streak-badge" id="streak-badge">🔥 0연속</div>
+      <div class="progress-wrap">
+        <div class="progress-text" id="progress-text">1 / 10</div>
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+      </div>
+      <div class="score-badge" id="score-badge">⭐ 0점</div>
+    </div>
+    <div class="quiz-card">
+      <div class="category-tag" id="quiz-category"></div>
+      <div class="quiz-sentence" id="quiz-sentence"></div>
+      <div id="ai-source-wrap"></div>
+    </div>
+    <div class="ox-btns">
+      <button class="ox-btn o-btn" id="btn-o" onclick="answer(true)">⭕<span>맞다!</span></button>
+      <button class="ox-btn x-btn" id="btn-x" onclick="answer(false)">❌<span>틀렸다!</span></button>
+    </div>
+    <div class="explanation-box" id="explanation-box">
+      <div class="exp-header">
+        <span class="exp-icon" id="exp-icon"></span>
+        <span class="exp-verdict" id="exp-verdict"></span>
+      </div>
+      <div class="exp-answer" id="exp-answer"></div>
+      <div class="exp-body" id="exp-body"></div>
+      <div class="exp-tip" id="exp-tip"></div>
+    </div>
+    <button class="next-btn" id="next-btn" onclick="nextQuestion()">다음 문제 →</button>
+  </div>
+
+  <!-- 결과 -->
+  <div class="screen" id="screen-result">
+    <div class="result-card">
+      <span class="result-emoji" id="result-emoji">🏆</span>
+      <h2 class="result-title" id="result-title">완료!</h2>
+      <p class="result-grade" id="result-grade"></p>
+      <div class="result-stats">
+        <div class="stat-box"><div class="stat-value" id="stat-score">0</div><div class="stat-label">점수</div></div>
+        <div class="stat-box"><div class="stat-value" id="stat-correct">0</div><div class="stat-label">정답</div></div>
+        <div class="stat-box"><div class="stat-value" id="stat-streak">0</div><div class="stat-label">최고연속</div></div>
+      </div>
+      <div class="review-section" id="review-section"></div>
+      <button class="retry-btn" onclick="retryGame()">다시 도전 🔄</button>
+      <button class="home-btn" onclick="goHome()">레벨 선택으로</button>
+    </div>
+  </div>
+
+</div>
+<div class="confetti-wrap" id="confetti-wrap"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const STATIC_DB = [
+  // ─── 레벨 1: 입문 (21문제) ───
+  { level:1, category:"됩/돼 구분", sentence:"이 방법이면 <span class='highlight'>됬어</span>.", isCorrect:false, highlight:"됬어", correctForm:"됐어", wrongForm:"됬어", explanation:"'됐어'가 맞는 표현이에요. '되었어'의 준말이 '됐어'랍니다. '됬어'라는 표현은 존재하지 않아요.", tip:"💡 팁: '됐어' = '되었어'의 준말. '됬어'는 없는 단어!" },
+  { level:1, category:"됩/돼 구분", sentence:"그렇게 하면 <span class='highlight'>안 돼</span>.", isCorrect:true, highlight:"안 돼", correctForm:"안 돼", wrongForm:"안 되", explanation:"'안 돼'가 맞아요! '안 되어'로 바꿔도 어색하지 않으면 '안 돼'를 써야 해요.", tip:"💡 팁: '안 되어'로 바꿔봤을 때 자연스러우면 → '안 돼'" },
+  { level:1, category:"됩/돼 구분", sentence:"이미 <span class='highlight'>돼버린</span> 일이야.", isCorrect:true, highlight:"돼버린", correctForm:"돼버린", wrongForm:"되버린", explanation:"'돼'는 '되어'의 준말이에요. '되어버린'이 자연스러우므로 '돼버린'이 맞아요.", tip:"💡 팁: '돼' 자리에 '되어'를 넣어봐서 자연스러우면 OK!" },
+  { level:1, category:"맞히다/맞추다", sentence:"문제를 전부 <span class='highlight'>맞혔어</span>.", isCorrect:true, highlight:"맞혔어", correctForm:"맞혔어", wrongForm:"맞췄어", explanation:"'맞히다'는 정답을 알아낸다는 뜻이에요. 정답을 알아냈으니 '맞혔어'가 맞아요.", tip:"💡 팁: 정답 → 맞히다 / 둘을 나란히 → 맞추다" },
+  { level:1, category:"맞히다/맞추다", sentence:"퍼즐 조각을 <span class='highlight'>맞혔어</span>.", isCorrect:false, highlight:"맞혔어", correctForm:"맞췄어", wrongForm:"맞혔어", explanation:"퍼즐 조각은 서로 맞도록 견주어 끼우는 것이므로 '맞추다'를 써야 해요.", tip:"💡 팁: 퍼즐·박자 맞추기 → 맞추다 / 정답 알아내기 → 맞히다" },
+  { level:1, category:"이따가/있다가", sentence:"<span class='highlight'>이따가</span> 전화할게.", isCorrect:true, highlight:"이따가", correctForm:"이따가", wrongForm:"있다가", explanation:"'이따가'는 '조금 후에'라는 뜻의 부사예요. '있다가'는 '어떤 장소에 머물다가'라는 뜻으로 전혀 달라요.", tip:"💡 팁: 조금 뒤에 = 이따가 / 여기 머물다가 = 있다가" },
+  { level:1, category:"이따가/있다가", sentence:"집에 <span class='highlight'>있다가</span> 나왔어.", isCorrect:true, highlight:"있다가", correctForm:"있다가", wrongForm:"이따가", explanation:"'집에 있다가'는 '집에 머물다가'라는 뜻으로 '있다가'가 맞는 표현이에요.", tip:"💡 팁: 장소에 머무는 경우 → 있다가" },
+  { level:1, category:"틀리다/다르다", sentence:"우리 둘의 생각이 <span class='highlight'>틀려</span>.", isCorrect:false, highlight:"틀려", correctForm:"달라", wrongForm:"틀려", explanation:"'틀리다'는 오답일 때, '다르다'는 서로 같지 않을 때 써요. 생각이 같지 않으니 '달라'가 맞아요.", tip:"💡 팁: 오답 → 틀리다 / 차이 → 다르다" },
+  { level:1, category:"반드시/반듯이", sentence:"약속은 <span class='highlight'>반드시</span> 지켜야 해.", isCorrect:true, highlight:"반드시", correctForm:"반드시", wrongForm:"반듯이", explanation:"'반드시'는 '꼭, 틀림없이'라는 뜻이에요. '반듯이'는 '비뚤지 않고 바르게'라는 뜻으로 의미가 달라요.", tip:"💡 팁: 꼭/틀림없이 → 반드시 / 바르게/곧게 → 반듯이" },
+  { level:1, category:"반드시/반듯이", sentence:"허리를 <span class='highlight'>반드시</span> 펴고 앉아.", isCorrect:false, highlight:"반드시", correctForm:"반듯이", wrongForm:"반드시", explanation:"허리를 바르게 펴는 것이니 '반듯이'가 맞아요. '반드시'는 '꼭 해야 한다'는 의미예요.", tip:"💡 팁: 자세·모양이 바를 때 → 반듯이" },
+  { level:1, category:"금세/금새", sentence:"<span class='highlight'>금세</span> 시간이 지났어.", isCorrect:true, highlight:"금세", correctForm:"금세", wrongForm:"금새", explanation:"'금세'는 '금시에'의 준말로 '곧, 이내'를 뜻해요. '금새'는 '값'을 뜻하는 다른 단어예요.", tip:"💡 팁: '금시에' → '금세'. '금새'는 아예 다른 뜻!" },
+  { level:1, category:"띄어쓰기", sentence:"이것은 <span class='highlight'>할 수 있어</span>.", isCorrect:true, highlight:"할 수 있어", correctForm:"할 수 있어", wrongForm:"할수있어", explanation:"'수'는 의존명사로 앞말과 띄어 써야 해요.", tip:"💡 팁: 의존명사(수, 것, 때, 줄 등)는 항상 앞말과 띄어 쓰기!" },
+  { level:1, category:"띄어쓰기", sentence:"먹을<span class='highlight'>만큼</span> 가져가.", isCorrect:false, highlight:"만큼", correctForm:"먹을 만큼", wrongForm:"먹을만큼", explanation:"'만큼'도 의존명사로 쓰일 때 앞말과 띄어 써요.", tip:"💡 팁: '만큼'이 '~할 만큼' 처럼 쓰이면 의존명사 → 띄어쓰기!" },
+  { level:1, category:"낫다/낳다", sentence:"감기가 <span class='highlight'>낳았어</span>.", isCorrect:false, highlight:"낳았어", correctForm:"나았어", wrongForm:"낳았어", explanation:"병이 회복된 것은 '낫다'(회복하다)를 써야 해요. '낳다'는 아이나 알을 출산할 때 쓰는 표현이에요.", tip:"💡 팁: 회복 → 낫다(나았어) / 출산 → 낳다(낳았어)" },
+  { level:1, category:"낫다/낳다", sentence:"아이를 <span class='highlight'>낳았어</span>.", isCorrect:true, highlight:"낳았어", correctForm:"낳았어", wrongForm:"나았어", explanation:"아이를 출산한 것이니 '낳다'가 맞아요.", tip:"💡 팁: 출산할 때는 '낳다'" },
+  { level:1, category:"며칠/몇일", sentence:"오늘이 <span class='highlight'>며칠</span>이에요?", isCorrect:true, highlight:"며칠", correctForm:"며칠", wrongForm:"몇일", explanation:"'며칠'이 표준어예요. 날짜를 물을 때는 '며칠'만 써요.", tip:"💡 팁: 날짜를 물을 때는 무조건 '며칠'!" },
+  { level:1, category:"로서/로써", sentence:"이 칼<span class='highlight'>로써</span> 자른다.", isCorrect:true, highlight:"로써", correctForm:"로써", wrongForm:"로서", explanation:"'로써'는 도구·수단을 나타내요. 칼이 자르는 도구이니 '로써'가 맞아요.", tip:"💡 팁: 도구/수단 → 로써 / 자격/신분 → 로서" },
+  { level:1, category:"로서/로써", sentence:"학생<span class='highlight'>으로서</span> 공부해야 해.", isCorrect:true, highlight:"으로서", correctForm:"으로서", wrongForm:"으로써", explanation:"'학생'이라는 자격·신분을 나타내는 것이니 '으로서'가 맞아요.", tip:"💡 팁: 신분/자격 → 으로서" },
+  { level:1, category:"안/않", sentence:"그 말은 <span class='highlight'>안</span> 맞아.", isCorrect:true, highlight:"안", correctForm:"안", wrongForm:"않", explanation:"'안'은 부사로 동사·형용사 앞에서 부정을 나타내요. '안 맞아'는 맞아요.", tip:"💡 팁: '안' 뒤엔 동사/형용사 / '않'은 '-지 않다' 형태" },
+  { level:1, category:"안/않", sentence:"먹지 <span class='highlight'>안았어</span>.", isCorrect:false, highlight:"안았어", correctForm:"않았어", wrongForm:"안았어", explanation:"'-지 아니하다'의 준말은 '-지 않다'예요. '먹지 않았어'가 맞는 표현이에요.", tip:"💡 팁: '-지 안-' → 없는 표현! '-지 않-'이 맞아요" },
+  { level:1, category:"바라다/바래다", sentence:"합격하기를 <span class='highlight'>바래</span>.", isCorrect:false, highlight:"바래", correctForm:"바라", wrongForm:"바래", explanation:"소망을 나타낼 때는 '바라다'를 써요. '바래다'는 색이 변하거나 배웅할 때 쓰는 다른 단어예요.", tip:"💡 팁: 소망/희망 → 바라다(바라) / 색이 바래다 → 바래다" },
+
+  // ─── 레벨 2: 도전 (22문제) ───
+  { level:2, category:"어떡해/어떻게", sentence:"이걸 <span class='highlight'>어떻해</span>?", isCorrect:false, highlight:"어떻해", correctForm:"어떡해", wrongForm:"어떻해", explanation:"'어떡해'는 '어떻게 해'의 준말이에요. '어떻해'는 없는 표현이에요.", tip:"💡 팁: '어떻게 해' → '어떡해' / '어떠하게' → '어떻게'" },
+  { level:2, category:"어떡해/어떻게", sentence:"이 문제를 <span class='highlight'>어떻게</span> 풀지?", isCorrect:true, highlight:"어떻게", correctForm:"어떻게", wrongForm:"어떡해", explanation:"방법을 물어보는 것이니 '어떻게'가 맞아요. '어떡해'는 난감한 상황에서 쓰는 감탄 표현이에요.", tip:"💡 팁: 방법 물음 → 어떻게 / 난감 표현 → 어떡해" },
+  { level:2, category:"웬/왠", sentence:"<span class='highlight'>왠지</span> 오늘은 기분이 좋아.", isCorrect:true, highlight:"왠지", correctForm:"왠지", wrongForm:"웬지", explanation:"'왠지'는 '왜인지'의 준말이에요. '웬지'는 표준어가 아니에요.", tip:"💡 팁: '왠지'만 있어요! '웬지'는 없는 단어" },
+  { level:2, category:"웬/왠", sentence:"<span class='highlight'>웬</span> 떡이야!", isCorrect:true, highlight:"웬", correctForm:"웬", wrongForm:"왠", explanation:"'웬'은 '어떠한, 어찌 된'을 뜻하는 관형사예요.", tip:"💡 팁: '어떠한'의 뜻 → 웬 / '왜인지'의 준말 → 왠지" },
+  { level:2, category:"결재/결제", sentence:"카드로 <span class='highlight'>결재</span>할게요.", isCorrect:false, highlight:"결재", correctForm:"결제", wrongForm:"결재", explanation:"'결제'는 돈을 치르는 것, '결재'는 상사가 서류를 승인하는 것이에요.", tip:"💡 팁: 돈 내는 건 결제(決濟) / 상사 도장 받는 건 결재(決裁)" },
+  { level:2, category:"든지/던지", sentence:"뭐를 먹<span class='highlight'>든지</span> 맛있어.", isCorrect:true, highlight:"든지", correctForm:"든지", wrongForm:"던지", explanation:"'든지'는 선택의 의미를 나타내요. '던지'는 과거의 경험이나 회상을 나타낼 때 써요.", tip:"💡 팁: 선택(~든지 ~든지) / 회상(예전에 얼마나 맛있던지)" },
+  { level:2, category:"든지/던지", sentence:"예전에 얼마나 힘들<span class='highlight'>던지</span> 몰라.", isCorrect:true, highlight:"던지", correctForm:"던지", wrongForm:"든지", explanation:"과거의 경험을 회상하는 것이므로 '던지'가 맞아요.", tip:"💡 팁: 과거 회상/경험 → 던지" },
+  { level:2, category:"가르치다/가리키다", sentence:"선생님이 수학을 <span class='highlight'>가르쳐</span> 줬어.", isCorrect:true, highlight:"가르쳐", correctForm:"가르쳐", wrongForm:"가리켜", explanation:"지식·기술을 알려주는 것은 '가르치다'예요. '가리키다'는 손가락으로 방향이나 대상을 지시할 때 써요.", tip:"💡 팁: 교육 → 가르치다 / 손으로 지시 → 가리키다" },
+  { level:2, category:"가르치다/가리키다", sentence:"저쪽을 <span class='highlight'>가르키며</span> 말했어.", isCorrect:false, highlight:"가르키며", correctForm:"가리키며", wrongForm:"가르키며", explanation:"방향을 지시하는 것이니 '가리키다'가 맞아요. '가르키다'는 없는 단어예요.", tip:"💡 팁: '가르키다'는 없는 단어! 방향 지시는 '가리키다'" },
+  { level:2, category:"늘이다/늘리다", sentence:"고무줄을 <span class='highlight'>늘였어</span>.", isCorrect:true, highlight:"늘였어", correctForm:"늘였어", wrongForm:"늘렸어", explanation:"'늘이다'는 길이를 길게 하는 것, '늘리다'는 수나 양을 많게 하는 것이에요.", tip:"💡 팁: 길이 길게 → 늘이다 / 수/양 많게 → 늘리다" },
+  { level:2, category:"늘이다/늘리다", sentence:"운동 시간을 <span class='highlight'>늘였어</span>.", isCorrect:false, highlight:"늘였어", correctForm:"늘렸어", wrongForm:"늘였어", explanation:"운동 시간의 양을 많게 하는 것이니 '늘리다'가 맞아요.", tip:"💡 팁: 시간/돈/인원 등 양을 늘릴 때 → 늘리다" },
+  { level:2, category:"부치다/붙이다", sentence:"편지를 <span class='highlight'>붙였어</span>.", isCorrect:false, highlight:"붙였어", correctForm:"부쳤어", wrongForm:"붙였어", explanation:"우편으로 보내는 것은 '부치다'예요. '부쳤어'가 맞아요.", tip:"💡 팁: 우편 발송 → 부치다 / 접착 → 붙이다" },
+  { level:2, category:"부치다/붙이다", sentence:"스티커를 <span class='highlight'>붙였어</span>.", isCorrect:true, highlight:"붙였어", correctForm:"붙였어", wrongForm:"부쳤어", explanation:"접착제나 테이프로 붙이는 것은 '붙이다'예요.", tip:"💡 팁: 접착할 때 → 붙이다" },
+  { level:2, category:"뵈다/봬다", sentence:"내일 <span class='highlight'>뵐게요</span>.", isCorrect:true, highlight:"뵐게요", correctForm:"뵐게요", wrongForm:"봴게요", explanation:"'뵈다'는 '보다'의 겸양어로, '-ㄹ' 어미 앞에서는 '뵈'가 그대로 쓰여 '뵐게요'가 맞아요.", tip:"💡 팁: '보이다'의 겸양 → '뵈다'. 내일 뵐게요 ✓" },
+  { level:2, category:"깨끗이/깨끗히", sentence:"방을 <span class='highlight'>깨끗이</span> 청소했어.", isCorrect:true, highlight:"깨끗이", correctForm:"깨끗이", wrongForm:"깨끗히", explanation:"받침이 'ㅅ'인 경우 '-이'를 붙이므로 '깨끗이'가 맞아요.", tip:"💡 팁: 받침 ㅅ + 이 → 깨끗이, 반듯이, 빠듯이" },
+  { level:2, category:"-이/-히 부사", sentence:"솔직<span class='highlight'>히</span> 말해줘.", isCorrect:true, highlight:"히", correctForm:"솔직히", wrongForm:"솔직이", explanation:"'-하다'가 붙는 단어에는 '-히'를 써요. '솔직하다'에서 나온 부사이니 '솔직히'가 맞아요.", tip:"💡 팁: '-하다' 붙는 단어 → '-히' (솔직히, 정확히, 분명히)" },
+  { level:2, category:"-이/-히 부사", sentence:"틈틈<span class='highlight'>이</span> 운동했어.", isCorrect:true, highlight:"이", correctForm:"틈틈이", wrongForm:"틈틈히", explanation:"'틈틈이'처럼 '-하다'가 붙지 않는 형태에는 '-이'를 써요.", tip:"💡 팁: '-하다' 안 붙는 경우 → '-이' (틈틈이, 겹겹이, 나날이)" },
+  { level:2, category:"설레다/설레이다", sentence:"첫날이라 마음이 <span class='highlight'>설레었어</span>.", isCorrect:true, highlight:"설레었어", correctForm:"설레었어", wrongForm:"설레이었어", explanation:"'설레다'가 기본형이에요. '설레이다'는 비표준어예요.", tip:"💡 팁: '설레이다'는 없는 단어! '설레다'가 표준어" },
+  { level:2, category:"오랫동안/오래동안", sentence:"<span class='highlight'>오랫동안</span> 기다렸어.", isCorrect:true, highlight:"오랫동안", correctForm:"오랫동안", wrongForm:"오래동안", explanation:"'오랫동안'이 표준 표현이에요. '오래'와 '동안' 사이에 사이시옷이 들어가요.", tip:"💡 팁: 오랫동안 = 오래 + ㅅ + 동안. 사이시옷!" },
+  { level:2, category:"희한하다", sentence:"이건 정말 <span class='highlight'>희안한</span> 일이야.", isCorrect:false, highlight:"희안한", correctForm:"희한한", wrongForm:"희안한", explanation:"'희한하다'가 표준어예요. '희안하다'는 없는 단어예요.", tip:"💡 팁: 희안 ❌ → 희한 ✓ (稀罕, 드물 희 + 드물 한)" },
+  { level:2, category:"너무/매우", sentence:"오늘 날씨가 <span class='highlight'>너무</span> 좋다.", isCorrect:true, highlight:"너무", correctForm:"너무", wrongForm:"너무(부정만)", explanation:"2015년부터 '너무'는 긍정·부정 모두 쓸 수 있도록 개정됐어요.", tip:"💡 팁: 2015년 개정 후 '너무 좋다'도 표준어로 인정!" },
+  { level:2, category:"~던/~든", sentence:"예쁘<span class='highlight'>든</span> 못생겼든 상관없어.", isCorrect:true, highlight:"든", correctForm:"든", wrongForm:"던", explanation:"둘 중 하나를 선택하는 의미이므로 '든'이 맞아요. '든~든'은 선택을 나타내요.", tip:"💡 팁: A든 B든 = 선택(어느 쪽이든) → '든'" },
+
+  // ─── 레벨 3: 고수 (20문제) ───
+  { level:3, category:"이중 피동", sentence:"옷이 물에 <span class='highlight'>젖혀졌어</span>.", isCorrect:false, highlight:"젖혀졌어", correctForm:"젖었어", wrongForm:"젖혀졌어", explanation:"피동 표현이 이중으로 쓰인 이중 피동이에요. '옷이 물에 젖었어'가 자연스러운 표현이에요.", tip:"💡 팁: 이중 피동(~혀졌어, ~되어지다)은 틀린 표현!" },
+  { level:3, category:"이중 피동", sentence:"이 책이 많이 <span class='highlight'>읽혀지고</span> 있어.", isCorrect:false, highlight:"읽혀지고", correctForm:"읽히고", wrongForm:"읽혀지고", explanation:"'읽히다'가 이미 피동 표현인데 '-지다'를 또 붙이면 이중 피동이 돼요.", tip:"💡 팁: 피동사(-이/히/리/기) + '-어지다' 조합은 이중 피동!" },
+  { level:3, category:"능동/수동", sentence:"시험에 <span class='highlight'>합격되었어</span>.", isCorrect:false, highlight:"합격되었어", correctForm:"합격했어", wrongForm:"합격되었어", explanation:"스스로 합격한 것이니 능동 표현 '합격했어'가 더 자연스러워요.", tip:"💡 팁: 내가 하는 행동 → 능동(했다) / 당하는 경우 → 수동(되다)" },
+  { level:3, category:"ㅎ불규칙", sentence:"눈을 마주치자 얼굴이 <span class='highlight'>빨개졌어</span>.", isCorrect:true, highlight:"빨개졌어", correctForm:"빨개졌어", wrongForm:"빨게졌어", explanation:"'빨갛다'에 '-어지다'가 붙으면 'ㅎ'이 탈락하고 '빨가-'가 된 뒤 '-어지다'가 결합해 '빨개졌어'가 돼요.", tip:"💡 팁: ㅎ불규칙: 빨갛다→빨개, 파랗다→파래, 노랗다→노래" },
+  { level:3, category:"ㅎ불규칙", sentence:"하늘이 <span class='highlight'>파랗게</span> 맑아.", isCorrect:true, highlight:"파랗게", correctForm:"파랗게", wrongForm:"파래게", explanation:"'파랗다'에 '-게'가 붙을 때는 'ㅎ'이 탈락하지 않아요. '파랗게'가 맞는 활용이에요.", tip:"💡 팁: '-게' 앞에선 ㅎ 유지 → 파랗게, 노랗게 ✓" },
+  { level:3, category:"외래어 표기", sentence:"오늘 <span class='highlight'>케잌</span> 먹었어.", isCorrect:false, highlight:"케잌", correctForm:"케이크", wrongForm:"케잌", explanation:"'cake'의 한국어 외래어 표기는 '케이크'예요.", tip:"💡 팁: cake → 케이크 / steak → 스테이크" },
+  { level:3, category:"외래어 표기", sentence:"<span class='highlight'>초컬릿</span>을 먹었어.", isCorrect:false, highlight:"초컬릿", correctForm:"초콜릿", wrongForm:"초컬릿", explanation:"'chocolate'의 표준 외래어 표기는 '초콜릿'이에요.", tip:"💡 팁: chocolate → 초콜릿" },
+  { level:3, category:"문장 호응", sentence:"나는 절대로 그런 일은 <span class='highlight'>있어</span>.", isCorrect:false, highlight:"있어", correctForm:"없어", wrongForm:"있어", explanation:"'절대로'는 부정어와 호응해야 해요. '절대로 ~ 없다/않다/못하다' 형태로 써야 해요.", tip:"💡 팁: '절대로'는 반드시 부정어(없다, 않다, 못하다)와 함께!" },
+  { level:3, category:"문장 호응", sentence:"그는 결코 거짓말을 <span class='highlight'>했다</span>.", isCorrect:false, highlight:"했다", correctForm:"하지 않았다", wrongForm:"했다", explanation:"'결코'도 부정어와 호응해야 해요. '결코 ~ 하지 않다/못하다' 형태로 써야 해요.", tip:"💡 팁: '결코', '절대로', '전혀' 모두 부정어와 함께!" },
+  { level:3, category:"사이시옷", sentence:"바닷<span class='highlight'>가</span>에 놀러 갔어.", isCorrect:false, highlight:"가", correctForm:"바닷가", wrongForm:"바다가", explanation:"'바다'와 '가'가 합쳐질 때 사이시옷이 들어가 '바닷가'가 돼요.", tip:"💡 팁: 바닷가, 바닷속, 바닷물 → 모두 사이시옷 있음" },
+  { level:3, category:"사이시옷", sentence:"이것은 <span class='highlight'>나뭇잎</span>이야.", isCorrect:true, highlight:"나뭇잎", correctForm:"나뭇잎", wrongForm:"나무잎", explanation:"'나무'와 '잎'이 합쳐질 때 사이시옷이 들어가 '나뭇잎'이 돼요.", tip:"💡 팁: 나뭇잎 [나문닙] → 사이시옷은 발음으로도 확인 가능!" },
+  { level:3, category:"받침 활용", sentence:"내가 <span class='highlight'>짖누르던</span> 감정이 터졌어.", isCorrect:false, highlight:"짖누르던", correctForm:"짓누르던", wrongForm:"짖누르던", explanation:"'짓누르다'가 맞아요. 접두사 '짓-'을 쓸 때는 'ㅅ' 받침을 써요.", tip:"💡 팁: 짓누르다, 짓밟다, 짓이기다 — '짓-' 접두사" },
+  { level:3, category:"단어 구분", sentence:"우리<span class='highlight'>의</span> 나라를 사랑합시다.", isCorrect:false, highlight:"의", correctForm:"우리나라", wrongForm:"우리의 나라", explanation:"'우리나라'는 하나의 단어로 붙여 써요.", tip:"💡 팁: '우리나라'는 한 단어! 붙여 쓰기" },
+  { level:3, category:"수관형사", sentence:"책 <span class='highlight'>한 권</span>을 읽었어.", isCorrect:true, highlight:"한 권", correctForm:"한 권", wrongForm:"한권", explanation:"수관형사 '한'과 단위 명사 '권'은 띄어 써요.", tip:"💡 팁: 수관형사 + 단위명사는 띄어쓰기: 두 개, 세 번, 한 권" },
+  { level:3, category:"접속 표현", sentence:"비가 왔다. <span class='highlight'>그럼에도 불구하고</span> 경기는 계속됐다.", isCorrect:true, highlight:"그럼에도 불구하고", correctForm:"그럼에도 불구하고", wrongForm:"그럼에도(만)", explanation:"'그럼에도 불구하고'는 관용적으로 허용되는 표현이에요.", tip:"💡 팁: '그럼에도 불구하고'는 관용 표현으로 허용됩니다" },
+  { level:3, category:"어간 활용", sentence:"배가 <span class='highlight'>고파서</span> 밥을 먹었어.", isCorrect:true, highlight:"고파서", correctForm:"고파서", wrongForm:"고픠서", explanation:"'고프다'에 '-아서'가 붙으면 '고파서'가 돼요.", tip:"💡 팁: 고프다 → 고파(서) / 바쁘다 → 바빠(서)" },
+  { level:3, category:"어간 활용", sentence:"다리가 <span class='highlight'>저려서</span> 일어났어.", isCorrect:true, highlight:"저려서", correctForm:"저려서", wrongForm:"절려서", explanation:"'저리다'에 '-어서'가 붙으면 '저려서'가 돼요.", tip:"💡 팁: 저리다 → 저려(서)" },
+  { level:3, category:"구별 어휘", sentence:"이 약은 <span class='highlight'>혈압을 낮춰줘</span>.", isCorrect:true, highlight:"낮춰줘", correctForm:"낮춰줘", wrongForm:"낮와줘", explanation:"'낮추다'의 활용형이 '낮춰'예요. '낮추어'의 준말로 '낮춰줘'가 맞아요.", tip:"💡 팁: 낮추다 → 낮춰(낮추어의 준말)" },
+  { level:3, category:"높임 표현", sentence:"할머니께서 진지를 <span class='highlight'>드셨어요</span>.", isCorrect:true, highlight:"드셨어요", correctForm:"드셨어요", wrongForm:"먹으셨어요", explanation:"'드시다'는 '먹다'의 높임말이에요. '드셨어요'가 맞는 높임 표현이에요.", tip:"💡 팁: 먹다 → 드시다(드셨어요) / 잡수시다(잡수셨어요) 모두 OK" },
+  { level:3, category:"복수 표현", sentence:"여러 <span class='highlight'>사람들</span>이 모였어.", isCorrect:false, highlight:"사람들", correctForm:"사람", wrongForm:"사람들", explanation:"'여러'가 이미 복수를 의미하므로 '사람들'의 '-들'은 중복이에요. '여러 사람이 모였어'가 자연스러워요.", tip:"💡 팁: '여러', '모든' 뒤에 '-들'을 붙이면 중복!" },
+  { level:3, category:"어미 활용", sentence:"그 일이 <span class='highlight'>되든지 말든지</span> 상관없어.", isCorrect:true, highlight:"되든지 말든지", correctForm:"되든지 말든지", wrongForm:"되던지 말던지", explanation:"선택이나 무관심을 나타낼 때 '-든지'를 써요. '-던지'는 과거 경험을 나타낼 때 써요.", tip:"💡 팁: 선택/무관심 → -든지 / 과거 회상 → -던지" },
+];
+
+let AI_DB = [];
+function getAllDB() { return [...STATIC_DB, ...AI_DB]; }
+
+let selectedLevel = 1;
+let questions = [];
+let current = 0;
+let score = 0;
+let streak = 0;
+let maxStreak = 0;
+let results = [];
+const QUESTIONS_PER_GAME = 10;
+let isGenerating = false;
+
+function selectLevel(el) {
+  document.querySelectorAll('.level-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedLevel = parseInt(el.dataset.level);
+}
+
+function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
+
+function updateDBCount() {
+  const total = getAllDB().length;
+  document.getElementById('db-count').textContent = `📚 총 ${total}개 문제 수록`;
+}
+
+async function generateAIQuestions() {
+  if (isGenerating) return;
+  isGenerating = true;
+  const btn = document.getElementById('ai-gen-btn');
+  const status = document.getElementById('ai-status');
+  btn.disabled = true;
+  btn.innerHTML = `<div class="spinner"></div> Claude가 생성 중...`;
+  status.textContent = '🤖 새 맞춤법 문제를 만들고 있어요... (10~20초 소요)';
+
+  const existingHighlights = getAllDB().map(q => q.highlight).join(', ');
+  const existingCategories = [...new Set(getAllDB().map(q => q.category))].join(', ');
+
+  const prompt = `당신은 한국어 맞춤법 교육 전문가입니다.
+한국인들이 자주 틀리는 맞춤법 OX 퀴즈 문제 10개를 만들어주세요.
+
+조건:
+- isCorrect true 5개, false 5개 (균형 유지)
+- level 1(입문) 3개, level 2(도전) 4개, level 3(고수) 3개
+- 이미 있는 표현과 중복 금지: ${existingHighlights.slice(0,300)}
+- 새로운 카테고리 우선 (기존: ${existingCategories})
+- 실생활에서 실제로 많이 틀리는 표현 위주
+- sentence에는 반드시 <span class='highlight'>밑줄칠내용</span> 포함
+
+반드시 JSON 배열만 반환 (다른 텍스트 없이):
+[{"level":1,"category":"카테고리","sentence":"문장 <span class='highlight'>단어</span> 계속.","isCorrect":true,"highlight":"단어","correctForm":"올바른표현","wrongForm":"틀린표현","explanation":"설명 2-3문장.","tip":"💡 팁: 기억법"}]`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await resp.json();
+    const text = (data.content || []).map(c => c.text || '').join('');
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) throw new Error('JSON 없음');
+    const newQs = JSON.parse(jsonMatch[0]);
+    if (!Array.isArray(newQs) || newQs.length === 0) throw new Error('파싱 실패');
+
+    const tagged = newQs.map(q => ({ ...q, isAI: true }));
+    AI_DB.push(...tagged);
+    updateDBCount();
+    status.textContent = `✅ ${tagged.length}개 문제 추가! 총 ${getAllDB().length}개`;
+    showToast(`🤖 AI 문제 ${tagged.length}개 추가됨!`);
+    btn.innerHTML = `🤖 AI 문제 10개 더 생성`;
+  } catch(e) {
+    console.error(e);
+    status.textContent = '⚠️ 생성 실패. 다시 시도해 주세요.';
+    btn.innerHTML = `🤖 AI 문제 10개 추가 생성`;
+  }
+  btn.disabled = false;
+  isGenerating = false;
+}
+
+function startGame() {
+  let pool = selectedLevel === 0 ? getAllDB() : getAllDB().filter(q => q.level === selectedLevel);
+  if (pool.length === 0) pool = getAllDB();
+  questions = shuffle(pool).slice(0, Math.min(QUESTIONS_PER_GAME, pool.length));
+  current = 0; score = 0; streak = 0; maxStreak = 0; results = [];
+  showScreen('quiz');
+  renderQuestion();
+}
+
+function renderQuestion() {
+  const q = questions[current];
+  document.getElementById('quiz-category').textContent = q.category;
+  document.getElementById('quiz-sentence').innerHTML = q.sentence;
+  document.getElementById('progress-text').textContent = `${current + 1} / ${questions.length}`;
+  document.getElementById('progress-fill').style.width = `${(current / questions.length) * 100}%`;
+  document.getElementById('score-badge').textContent = `⭐ ${score}점`;
+  document.getElementById('ai-source-wrap').innerHTML = q.isAI ? `<div class="ai-source-tag">✨ AI 생성 문제</div>` : '';
+  updateStreak();
+  document.getElementById('explanation-box').style.display = 'none';
+  document.getElementById('next-btn').style.display = 'none';
+  const btnO = document.getElementById('btn-o');
+  const btnX = document.getElementById('btn-x');
+  btnO.disabled = false; btnX.disabled = false;
+  btnO.className = 'ox-btn o-btn';
+  btnX.className = 'ox-btn x-btn';
+}
+
+function updateStreak() {
+  const badge = document.getElementById('streak-badge');
+  badge.textContent = `🔥 ${streak}연속`;
+  badge.className = streak >= 3 ? 'streak-badge hot' : 'streak-badge';
+}
+
+function answer(userSaysCorrect) {
+  const q = questions[current];
+  const isRight = (userSaysCorrect === q.isCorrect);
+  document.getElementById('btn-o').disabled = true;
+  document.getElementById('btn-x').disabled = true;
+  if (userSaysCorrect) {
+    document.getElementById('btn-o').className = isRight ? 'ox-btn o-btn result-correct' : 'ox-btn o-btn result-wrong';
+  } else {
+    document.getElementById('btn-x').className = isRight ? 'ox-btn x-btn result-correct' : 'ox-btn x-btn result-wrong';
+  }
+  if (isRight) {
+    streak++;
+    maxStreak = Math.max(maxStreak, streak);
+    score += streak >= 3 ? 20 : 10;
+    if (streak >= 3) spawnConfetti();
+  } else {
+    streak = 0;
+  }
+  updateStreak();
+  document.getElementById('score-badge').textContent = `⭐ ${score}점`;
+  results.push({ q, isRight });
+  showExplanation(q, isRight);
+}
+
+function showExplanation(q, isRight) {
+  const box = document.getElementById('explanation-box');
+  box.style.display = 'block';
+  box.className = isRight ? 'explanation-box correct' : 'explanation-box wrong';
+  document.getElementById('exp-icon').textContent = isRight ? '🎉' : '😅';
+  const v = document.getElementById('exp-verdict');
+  v.textContent = isRight ? '정답이에요!' : '아쉽게 틀렸어요!';
+  v.className = isRight ? 'exp-verdict correct' : 'exp-verdict wrong';
+  document.getElementById('exp-answer').innerHTML =
+    `<div class="exp-answer-label">올바른 표현</div>
+     <div class="exp-answer-text"><span class="wrong-word">${q.wrongForm}</span> → <span class="correct-word">${q.correctForm}</span></div>`;
+  document.getElementById('exp-body').textContent = q.explanation;
+  document.getElementById('exp-tip').textContent = q.tip;
+  document.getElementById('next-btn').style.display = 'block';
+}
+
+function nextQuestion() {
+  current++;
+  if (current >= questions.length) showResult();
+  else renderQuestion();
+}
+
+function showResult() {
+  const correct = results.filter(r => r.isRight).length;
+  const total = results.length;
+  const pct = Math.round((correct / total) * 100);
+  let emoji, title, grade;
+  if (pct === 100)    { emoji='🏆'; title='완벽해요!';       grade='맞춤법 마스터 등극! 🎖️'; }
+  else if (pct >= 80) { emoji='🥇'; title='훌륭해요!';       grade='거의 다 맞혔어요 👍'; }
+  else if (pct >= 60) { emoji='🥈'; title='잘 했어요!';      grade='조금만 더 연습하면 완벽!'; }
+  else if (pct >= 40) { emoji='🥉'; title='아직 더 해봐요!'; grade='틀린 문제를 다시 확인해 보세요'; }
+  else                { emoji='📚'; title='같이 공부해요!';  grade='처음부터 차근차근 배워봐요 💪'; }
+  document.getElementById('result-emoji').textContent = emoji;
+  document.getElementById('result-title').textContent = title;
+  document.getElementById('result-grade').textContent = `${correct}/${total} 정답 (${pct}%) · ${grade}`;
+  document.getElementById('stat-score').textContent = score;
+  document.getElementById('stat-correct').textContent = `${correct}/${total}`;
+  document.getElementById('stat-streak').textContent = maxStreak;
+  const reviewEl = document.getElementById('review-section');
+  reviewEl.innerHTML = `<div class="review-title">📋 문제 복습</div>`;
+  results.forEach(r => {
+    const div = document.createElement('div');
+    div.className = r.isRight ? 'review-item ok' : 'review-item fail';
+    div.innerHTML = `
+      <div class="review-dot ${r.isRight ? 'ok' : 'fail'}"></div>
+      <div class="review-item-text">
+        <div>${r.q.correctForm}${r.q.isAI ? ' 🤖' : ''}${r.isRight ? ' ✓' : ''}</div>
+        ${!r.isRight ? `<div class="review-item-wrong">틀린 부분: ${r.q.wrongForm}</div>` : ''}
+      </div>`;
+    reviewEl.appendChild(div);
+  });
+  showScreen('result');
+  if (pct === 100) spawnConfetti();
+}
+
+function retryGame() { startGame(); }
+function goHome() { updateDBCount(); showScreen('intro'); }
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+}
+
+function spawnConfetti() {
+  const wrap = document.getElementById('confetti-wrap');
+  const colors = ['#ff6b6b','#4ecdc4','#ffe66d','#6bcb77','#ff8e8e','#a8dadc'];
+  for (let i = 0; i < 40; i++) {
+    const el = document.createElement('div');
+    el.className = 'confetti';
+    el.style.cssText = `left:${Math.random()*100}vw;top:-20px;background:${colors[Math.floor(Math.random()*colors.length)]};width:${6+Math.random()*8}px;height:${6+Math.random()*8}px;animation-duration:${1.5+Math.random()*2}s;animation-delay:${Math.random()*0.5}s;`;
+    wrap.appendChild(el);
+    setTimeout(() => el.remove(), 4000);
+  }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+updateDBCount();
+</script>
+</body>
+</html>
