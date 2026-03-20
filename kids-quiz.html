@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>신나는 공부 게임!</title>
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Gaegu:wght@700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sky: #fff9e6;
+  --card: #ffffff;
+  --r: 24px;
+  --shadow: 0 8px 32px rgba(0,0,0,0.10);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; }
+body {
+  font-family: 'Jua', sans-serif;
+  background: var(--sky);
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 12px;
+  overflow-x: hidden;
+}
+/* 배경 별 */
+body::before {
+  content: '⭐✨🌟💫⭐✨🌟💫⭐✨';
+  position: fixed; top: 0; left: 0; right: 0;
+  font-size: 22px; letter-spacing: 18px;
+  opacity: 0.18; pointer-events: none;
+  padding: 8px; word-break: break-all; line-height: 2.2;
+}
+.app { width: 100%; max-width: 400px; position: relative; z-index: 1; }
+.screen { display: none; }
+.screen.active { display: block; animation: pop 0.35s cubic-bezier(.34,1.56,.64,1); }
+@keyframes pop { from { opacity:0; transform: scale(0.85); } to { opacity:1; transform: scale(1); } }
+
+/* ── 홈 ── */
+.home-card {
+  background: var(--card);
+  border-radius: 32px;
+  padding: 32px 24px 28px;
+  text-align: center;
+  box-shadow: var(--shadow);
+  border: 4px solid #ffe066;
+}
+.home-mascot { font-size: 80px; display: block; animation: wiggle 2s infinite; margin-bottom: 6px; }
+@keyframes wiggle {
+  0%,100% { transform: rotate(-5deg) scale(1); }
+  50%      { transform: rotate(5deg) scale(1.08); }
+}
+.home-title { font-family: 'Gaegu', cursive; font-size: 36px; color: #ff6b35; margin-bottom: 4px; text-shadow: 3px 3px 0 #ffe066; }
+.home-sub { font-size: 15px; color: #888; margin-bottom: 24px; }
+
+.stars-display {
+  background: linear-gradient(135deg, #fff3cd, #ffe066);
+  border-radius: 99px; padding: 10px 24px;
+  font-size: 22px; margin-bottom: 22px;
+  display: inline-block; border: 3px solid #ffc107;
+}
+
+.subject-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }
+.subject-btn {
+  padding: 18px 8px 14px;
+  border: 4px solid transparent;
+  border-radius: 20px;
+  cursor: pointer;
+  font-family: 'Jua', sans-serif;
+  transition: all 0.15s;
+  text-align: center;
+}
+.subject-btn:active { transform: scale(0.93); }
+.subject-btn .s-emoji { font-size: 44px; display: block; margin-bottom: 6px; }
+.subject-btn .s-name { font-size: 17px; font-weight: 700; display: block; }
+.subject-btn .s-desc { font-size: 11px; margin-top: 2px; }
+
+.btn-korean  { background: #fff0f5; border-color: #ff6b8a; color: #c0004b; }
+.btn-math    { background: #f0f7ff; border-color: #4b9eff; color: #0050c0; }
+.btn-hangul  { background: #f0fff4; border-color: #2ecc71; color: #006b2e; }
+.btn-english { background: #fff8f0; border-color: #ff9f43; color: #c05200; }
+.subject-btn:hover { transform: translateY(-3px) scale(1.03); box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
+
+/* ── 퀴즈 헤더 ── */
+.quiz-header {
+  background: var(--card);
+  border-radius: 20px 20px 0 0;
+  padding: 14px 18px 10px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 3px dashed #ffe066;
+  box-shadow: var(--shadow);
+}
+.q-subject { font-size: 22px; }
+.q-progress { font-size: 14px; color: #888; }
+.q-stars { font-size: 16px; color: #ff9f43; font-weight: 700; }
+.progress-bar-wrap { height: 8px; background: #f0f0f0; border-radius: 99px; overflow: hidden; margin: 0 0 0; }
+.progress-bar-fill { height: 100%; border-radius: 99px; transition: width 0.4s ease; }
+
+/* ── 문제 카드 ── */
+.quiz-body {
+  background: var(--card);
+  padding: 28px 22px 24px;
+  text-align: center;
+  box-shadow: var(--shadow);
+  min-height: 200px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.q-emoji { font-size: 72px; display: block; margin-bottom: 12px; animation: bounce2 1s infinite; }
+@keyframes bounce2 { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+.q-question { font-size: 26px; color: #333; line-height: 1.4; word-break: keep-all; }
+.q-question .blank {
+  display: inline-block;
+  background: #fff3cd; border: 3px solid #ffc107;
+  border-radius: 10px; padding: 2px 14px;
+  color: #c07000; min-width: 60px;
+}
+.q-hint { font-size: 13px; color: #aaa; margin-top: 10px; }
+
+/* ── 보기 버튼 ── */
+.choices-wrap {
+  background: var(--card);
+  padding: 0 18px 20px;
+  box-shadow: var(--shadow);
+  border-radius: 0 0 20px 20px;
+}
+.choices { display: grid; gap: 10px; }
+.choices.grid2 { grid-template-columns: 1fr 1fr; }
+.choices.grid1 { grid-template-columns: 1fr; }
+.choice-btn {
+  padding: 16px 12px;
+  border: 4px solid #e0e0e0;
+  border-radius: 16px;
+  cursor: pointer;
+  font-family: 'Jua', sans-serif;
+  font-size: 20px;
+  background: #fafafa;
+  transition: all 0.12s;
+  color: #333;
+}
+.choice-btn:active:not(:disabled) { transform: scale(0.95); }
+.choice-btn:hover:not(:disabled) { border-color: #ffc107; background: #fff9e0; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(255,193,7,0.3); }
+.choice-btn:disabled { cursor: default; }
+.choice-btn.correct { background: #d4edda; border-color: #2ecc71; color: #1a7a3c; animation: correctAnim 0.4s ease; }
+.choice-btn.wrong   { background: #fde8e8; border-color: #e74c3c; color: #a00; animation: wrongAnim 0.3s ease; }
+@keyframes correctAnim { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+@keyframes wrongAnim   { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)} }
+
+/* ── 피드백 ── */
+.feedback-bar {
+  display: none;
+  padding: 14px 18px;
+  margin: 0; border-radius: 0;
+  text-align: center; font-size: 20px;
+  background: var(--card);
+}
+.feedback-bar.correct { background: #d4edda; color: #1a7a3c; }
+.feedback-bar.wrong   { background: #fde8e8; color: #a00; }
+
+/* ── 결과 ── */
+.result-card {
+  background: var(--card);
+  border-radius: 32px;
+  padding: 36px 24px 28px;
+  text-align: center;
+  box-shadow: var(--shadow);
+  border: 4px solid #ffe066;
+}
+.result-mascot { font-size: 90px; display: block; margin-bottom: 10px; }
+.result-title { font-family: 'Gaegu', cursive; font-size: 34px; color: #ff6b35; margin-bottom: 6px; text-shadow: 2px 2px 0 #ffe066; }
+.result-score { font-size: 18px; color: #666; margin-bottom: 18px; }
+.result-stars { font-size: 44px; margin-bottom: 22px; display: block; animation: starSpin 1s ease; }
+@keyframes starSpin { from{transform:rotate(-20deg) scale(0.5)} to{transform:rotate(0) scale(1)} }
+.earned-stars { background: linear-gradient(135deg,#fff3cd,#ffe066); border-radius: 16px; padding: 14px; margin-bottom: 22px; font-size: 18px; border: 3px solid #ffc107; }
+.result-btn {
+  width: 100%; padding: 18px;
+  background: linear-gradient(135deg, #ff6b35, #ff4500);
+  color: white; border: none; border-radius: 16px;
+  font-family: 'Jua', sans-serif; font-size: 22px;
+  cursor: pointer; margin-bottom: 10px;
+  box-shadow: 0 6px 0 #c43400;
+  transition: all 0.1s;
+}
+.result-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #c43400; }
+.home-btn2 {
+  width: 100%; padding: 14px;
+  background: #f5f5f5; color: #888;
+  border: 3px solid #ddd; border-radius: 16px;
+  font-family: 'Jua', sans-serif; font-size: 16px; cursor: pointer;
+}
+
+/* ── 파티클 ── */
+.confetti-wrap { position:fixed; top:0; left:0; right:0; bottom:0; pointer-events:none; z-index:999; overflow:hidden; }
+.confetti { position:absolute; border-radius:2px; animation: fall linear forwards; }
+@keyframes fall { 0%{opacity:1;transform:translateY(-20px) rotate(0)} 100%{opacity:0;transform:translateY(110vh) rotate(720deg)} }
+
+/* 홈버튼 */
+.back-btn {
+  position: absolute; top: 14px; left: 14px;
+  background: #fff; border: 3px solid #ddd; border-radius: 50%;
+  width: 40px; height: 40px; font-size: 18px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  z-index: 10;
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- 홈 -->
+  <div class="screen active" id="screen-home">
+    <div class="home-card">
+      <span class="home-mascot">🦊</span>
+      <h1 class="home-title">신나는 공부!</h1>
+      <p class="home-sub">문제를 풀고 별을 모아요 ⭐</p>
+      <div class="stars-display" id="total-stars-display">⭐ 0개</div>
+      <div class="subject-grid">
+        <button class="subject-btn btn-korean" onclick="startSubject('korean')">
+          <span class="s-emoji">📝</span>
+          <span class="s-name">맞춤법</span>
+          <span class="s-desc">바른 글쓰기</span>
+        </button>
+        <button class="subject-btn btn-math" onclick="startSubject('math')">
+          <span class="s-emoji">🔢</span>
+          <span class="s-name">구구단</span>
+          <span class="s-desc">숫자 계산</span>
+        </button>
+        <button class="subject-btn btn-hangul" onclick="startSubject('hangul')">
+          <span class="s-emoji">🔤</span>
+          <span class="s-name">한글</span>
+          <span class="s-desc">자음 모음</span>
+        </button>
+        <button class="subject-btn btn-english" onclick="startSubject('english')">
+          <span class="s-emoji">🔡</span>
+          <span class="s-name">영어</span>
+          <span class="s-desc">알파벳</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 퀴즈 -->
+  <div class="screen" id="screen-quiz" style="position:relative">
+    <button class="back-btn" onclick="goHome()">🏠</button>
+    <div class="quiz-header">
+      <span class="q-subject" id="q-subject-icon">📝</span>
+      <span class="q-progress" id="q-progress">1/8</span>
+      <span class="q-stars" id="q-stars-live">⭐ 0</span>
+    </div>
+    <div class="progress-bar-wrap" style="margin:0;border-radius:0;">
+      <div class="progress-bar-fill" id="q-bar" style="width:0%;background:#ffc107"></div>
+    </div>
+    <div class="quiz-body">
+      <span class="q-emoji" id="q-emoji">🦊</span>
+      <div class="q-question" id="q-question">문제가 여기에!</div>
+      <div class="q-hint" id="q-hint"></div>
+    </div>
+    <div class="feedback-bar" id="feedback-bar"></div>
+    <div class="choices-wrap">
+      <div class="choices grid2" id="choices-container"></div>
+    </div>
+  </div>
+
+  <!-- 결과 -->
+  <div class="screen" id="screen-result">
+    <div class="result-card">
+      <span class="result-mascot" id="result-mascot">🏆</span>
+      <h2 class="result-title" id="result-title">잘했어요!</h2>
+      <p class="result-score" id="result-score"></p>
+      <span class="result-stars" id="result-stars">⭐⭐⭐</span>
+      <div class="earned-stars" id="earned-info"></div>
+      <button class="result-btn" onclick="retrySubject()">한번 더! 🔄</button>
+      <button class="home-btn2" onclick="goHome()">🏠 처음으로</button>
+    </div>
+  </div>
+
+</div>
+<div class="confetti-wrap" id="confetti-wrap"></div>
+
+<script>
+// ══════════════════════════════════════
+// 문제 DB
+// ══════════════════════════════════════
+const SUBJECTS = {
+  korean: {
+    name: '맞춤법', icon: '📝', color: '#ff6b8a', bar: '#ff6b8a',
+    emoji: ['✏️','📖','🖊️','📚','🎒'],
+    questions: [
+      { q:'<span class="blank">?</span> 학교에 갔어요.', choices:['나는','나는이','내가는','저는을'], answer:0, hint:'주어를 골라요!' },
+      { q:'사과가 <span class="blank">?</span>.', choices:['맛있어요','맛있어용','맛있어염','마시써요'], answer:0, hint:'맛있다고 할 때!' },
+      { q:'친구한테 <span class="blank">?</span> 했어요.', choices:['안녕','않녕','안녕이','않녀'], answer:0, hint:'인사말이에요' },
+      { q:'밥을 <span class="blank">?</span>.', choices:['먹었어요','먹었서요','먹엇어요','먹었여요'], answer:0, hint:'먹다의 과거형' },
+      { q:'오늘은 날씨가 <span class="blank">?</span>.', choices:['좋아요','조아요','좋와요','좋아용'], answer:0, hint:'좋다고 할 때!' },
+      { q:'책을 <span class="blank">?</span> 읽었어요.', choices:['재미있게','재밌게','재미있께','재밋게'], answer:0, hint:'재미있다의 부사형' },
+      { q:'엄마가 <span class="blank">?</span> 주셨어요.', choices:['주셨어요','줬어요','주었어요','주셧어요'], answer:0, hint:'웃어른께 드리는 말' },
+      { q:'동생이 <span class="blank">?</span> 울었어요.', choices:['너무','넘','넘무','노무'], answer:0, hint:'아주 많이!' },
+    ]
+  },
+  math: {
+    name: '구구단', icon: '🔢', color: '#4b9eff', bar: '#4b9eff',
+    emoji: ['🔢','➕','✖️','🧮','💯'],
+    questions: [] // 아래에서 동적 생성
+  },
+  hangul: {
+    name: '한글', icon: '🔤', color: '#2ecc71', bar: '#2ecc71',
+    emoji: ['🔤','📝','✏️','🖊️','📖'],
+    questions: [
+      { q:'<span class="blank">ㄱ</span> 으로 시작하는 건?', choices:['가방','나비','다리','마을'], answer:0, hint:'학교 갈 때 메는 것' },
+      { q:'"나비"의 첫 자음은?', choices:['ㄴ','ㄱ','ㄷ','ㄹ'], answer:0, hint:'나~에서 나는 소리' },
+      { q:'"사과"에서 모음은?', choices:['ㅏ','ㅗ','ㅜ','ㅣ'], answer:0, hint:'사~에서 나는 모음' },
+      { q:'"마음"의 첫 자음은?', choices:['ㅁ','ㅂ','ㅍ','ㅎ'], answer:0, hint:'마~에서 나는 소리' },
+      { q:'"하늘"의 받침이 있는 글자는?', choices:['없어요','ㄹ','ㄴ','ㄱ'], answer:0, hint:'하늘을 잘 봐요' },
+      { q:'"공"의 받침은?', choices:['ㅇ','ㄱ','ㄴ','ㅁ'], answer:0, hint:'공~에서 마지막 소리' },
+      { q:'"바나나"에서 모음은?', choices:['ㅏ','ㅗ','ㅜ','ㅣ'], answer:0, hint:'바~나~나~ 들어봐요' },
+      { q:'"별"의 받침은?', choices:['ㄹ','ㄴ','ㅁ','ㅇ'], answer:0, hint:'별~ 마지막 소리' },
+    ]
+  },
+  english: {
+    name: '영어', icon: '🔡', color: '#ff9f43', bar: '#ff9f43',
+    emoji: ['🔡','🌍','✈️','📖','🎈'],
+    questions: [
+      { q:'"A"로 시작하는 동물은?', choices:['Ant 🐜','Bear 🐻','Cat 🐱','Dog 🐶'], answer:0, hint:'작은 곤충이에요' },
+      { q:'"B"는 어떻게 읽어요?', choices:['비','에이','씨','디'], answer:0, hint:'B의 이름은?' },
+      { q:'"Apple"의 첫 글자는?', choices:['A','B','C','D'], answer:0, hint:'사과는 영어로?' },
+      { q:'"Cat 🐱"의 첫 글자는?', choices:['C','A','B','D'], answer:0, hint:'고양이의 첫 글자!' },
+      { q:'"Dog"는 무슨 뜻이에요?', choices:['강아지🐶','고양이🐱','토끼🐰','곰🐻'], answer:0, hint:'멍멍 짖는 동물!' },
+      { q:'"E"로 시작하는 건?', choices:['Egg 🥚','Fish 🐟','Grape 🍇','Hat 🎩'], answer:0, hint:'아침에 먹는 것!' },
+      { q:'"F"는 몇 번째 알파벳?', choices:['6번째','5번째','7번째','4번째'], answer:0, hint:'A B C D E 다음은?' },
+      { q:'"Sun ☀️"은 무슨 뜻?', choices:['태양','달','별','구름'], answer:0, hint:'낮에 빛나는 것!' },
+    ]
+  }
+};
+
+// 구구단 동적 생성 (2~5단, 쉬운 것만)
+(function() {
+  const qs = [];
+  for (let d = 2; d <= 5; d++) {
+    for (let n = 1; n <= 5; n++) {
+      const ans = d * n;
+      // 오답 후보 풀 (1~30 범위에서 ans 제외)
+      const pool = [];
+      for (let i = 1; i <= 30; i++) { if (i !== ans) pool.push(i); }
+      // 랜덤 섞기
+      pool.sort(() => Math.random() - 0.5);
+      const wrongs = pool.slice(0, 3);
+      const choices = [ans, ...wrongs].sort(() => Math.random() - 0.5);
+      qs.push({
+        q: `${d} × ${n} = <span class="blank">?</span>`,
+        choices: choices.map(String),
+        answer: choices.indexOf(ans),
+        hint: `${d}단이에요!`
+      });
+    }
+  }
+  SUBJECTS.math.questions = qs.sort(() => Math.random() - 0.5).slice(0, 20);
+})();
+
+// ══════════════════════════════════════
+// 상태
+// ══════════════════════════════════════
+let totalStars = parseInt(localStorage.getItem('kidsStars') || '0');
+let currentSubject = '';
+let questions = [];
+let current = 0;
+let sessionStars = 0;
+let answered = false;
+let autoTimer = null;
+
+function saveStars() { localStorage.setItem('kidsStars', totalStars); }
+function updateStarsDisplay() {
+  document.getElementById('total-stars-display').textContent = `⭐ ${totalStars}개`;
+}
+
+// ══════════════════════════════════════
+// 효과음 (Web Audio API)
+// ══════════════════════════════════════
+let audioCtx = null;
+function getAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+function playCorrect() {
+  try {
+    const ctx = getAudio();
+    const freqs = [523, 659, 784, 1047];
+    freqs.forEach((f, i) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = f;
+      o.type = 'sine';
+      g.gain.setValueAtTime(0.18, ctx.currentTime + i*0.1);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i*0.1 + 0.25);
+      o.start(ctx.currentTime + i*0.1);
+      o.stop(ctx.currentTime + i*0.1 + 0.25);
+    });
+  } catch(e){}
+}
+function playWrong() {
+  try {
+    const ctx = getAudio();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value = 220;
+    o.type = 'sawtooth';
+    g.gain.setValueAtTime(0.15, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+    o.start(ctx.currentTime);
+    o.stop(ctx.currentTime + 0.35);
+  } catch(e){}
+}
+function playSelect() {
+  try {
+    const ctx = getAudio();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value = 660;
+    o.type = 'sine';
+    g.gain.setValueAtTime(0.1, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+    o.start(ctx.currentTime);
+    o.stop(ctx.currentTime + 0.12);
+  } catch(e){}
+}
+
+// ══════════════════════════════════════
+// 게임 로직
+// ══════════════════════════════════════
+function startSubject(name) {
+  playSelect();
+  currentSubject = name;
+  const sub = SUBJECTS[name];
+  questions = sub.questions.sort(() => Math.random()-0.5).slice(0, 8);
+  current = 0; sessionStars = 0; answered = false;
+  showScreen('quiz');
+  renderQuestion();
+}
+
+function retrySubject() { startSubject(currentSubject); }
+
+function renderQuestion() {
+  if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+  answered = false;
+  const sub = SUBJECTS[currentSubject];
+  const q = questions[current];
+  const total = questions.length;
+
+  document.getElementById('q-subject-icon').textContent = sub.icon;
+  document.getElementById('q-progress').textContent = `${current+1}/${total}`;
+  document.getElementById('q-stars-live').textContent = `⭐ ${sessionStars}`;
+  document.getElementById('q-bar').style.width = `${((current)/total)*100}%`;
+  document.getElementById('q-bar').style.background = sub.bar;
+
+  const emojis = sub.emoji;
+  document.getElementById('q-emoji').textContent = emojis[current % emojis.length];
+  document.getElementById('q-question').innerHTML = q.q;
+  document.getElementById('q-hint').textContent = '💡 ' + q.hint;
+
+  const fb = document.getElementById('feedback-bar');
+  fb.style.display = 'none';
+  fb.className = 'feedback-bar';
+
+  const container = document.getElementById('choices-container');
+  const isGrid2 = q.choices.length <= 4;
+  container.className = 'choices ' + (isGrid2 ? 'grid2' : 'grid1');
+  container.innerHTML = '';
+
+  q.choices.forEach((c, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.textContent = c;
+    btn.onclick = () => selectAnswer(i, q.answer);
+    container.appendChild(btn);
+  });
+}
+
+function selectAnswer(chosen, correct) {
+  if (answered) return;
+  answered = true;
+  playSelect();
+
+  const btns = document.querySelectorAll('.choice-btn');
+  btns.forEach(b => b.disabled = true);
+  btns[correct].classList.add('correct');
+
+  const fb = document.getElementById('feedback-bar');
+  fb.style.display = 'block';
+
+  if (chosen === correct) {
+    btns[chosen].classList.add('correct');
+    sessionStars++;
+    totalStars++;
+    saveStars();
+    updateStarsDisplay();
+    document.getElementById('q-stars-live').textContent = `⭐ ${sessionStars}`;
+    fb.className = 'feedback-bar correct';
+    fb.textContent = ['🎉 정답! 잘했어요!', '⭐ 맞았어요! 최고!', '🌟 대단해요!', '🎊 훌륭해요!'][Math.floor(Math.random()*4)];
+    playCorrect();
+    if (sessionStars % 3 === 0) spawnConfetti();
+  } else {
+    btns[chosen].classList.add('wrong');
+    fb.className = 'feedback-bar wrong';
+    fb.textContent = ['😅 아쉬워요! 다음엔 맞혀요!', '💪 괜찮아요! 다시 도전!', '🙈 아깝다! 힘내요!'][Math.floor(Math.random()*3)];
+    playWrong();
+  }
+
+  autoTimer = setTimeout(() => {
+    current++;
+    if (current >= questions.length) showResult();
+    else renderQuestion();
+  }, 1800);
+}
+
+function showResult() {
+  const total = questions.length;
+  const pct = Math.round((sessionStars / total) * 100);
+  let mascot, title, starsStr;
+
+  if (pct === 100)    { mascot='🏆'; title='완벽해요! 천재!';  starsStr='⭐⭐⭐'; spawnConfetti(); }
+  else if (pct >= 75) { mascot='🥇'; title='정말 잘했어요!';   starsStr='⭐⭐'; }
+  else if (pct >= 50) { mascot='🥈'; title='잘했어요!';        starsStr='⭐'; }
+  else                { mascot='💪'; title='다시 도전해요!';   starsStr=''; }
+
+  document.getElementById('result-mascot').textContent = mascot;
+  document.getElementById('result-title').textContent = title;
+  document.getElementById('result-score').textContent = `${sessionStars}/${total}개 맞혔어요!`;
+  document.getElementById('result-stars').textContent = starsStr || '😊';
+  document.getElementById('earned-info').innerHTML =
+    `이번에 ⭐ <b>${sessionStars}개</b> 획득!<br>모은 별 총 <b>${totalStars}개</b> ⭐`;
+
+  showScreen('result');
+}
+
+function goHome() {
+  if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+  updateStarsDisplay();
+  showScreen('home');
+}
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+}
+
+// 컨페티
+function spawnConfetti() {
+  const wrap = document.getElementById('confetti-wrap');
+  const colors = ['#ff6b35','#ffd700','#2ecc71','#4b9eff','#ff6b8a','#a29bfe'];
+  for (let i = 0; i < 50; i++) {
+    const el = document.createElement('div');
+    el.className = 'confetti';
+    const size = 8 + Math.random() * 10;
+    el.style.cssText = `left:${Math.random()*100}vw;top:-20px;background:${colors[Math.floor(Math.random()*colors.length)]};width:${size}px;height:${size}px;animation-duration:${1.5+Math.random()*2}s;animation-delay:${Math.random()*0.6}s;border-radius:${Math.random()>0.5?'50%':'2px'}`;
+    wrap.appendChild(el);
+    setTimeout(() => el.remove(), 4000);
+  }
+}
+
+updateStarsDisplay();
+</script>
+</body>
+</html>
